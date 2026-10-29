@@ -5,7 +5,10 @@ import { loadGas } from '../scripts/gas.mjs';
 
 // Real response of https://spla3.yuu26.com/api/schedule at 2026-10-29 15:00 JST (stage image URLs removed)
 const schedule = JSON.parse(readFileSync(new URL('./fixtures/schedule.json', import.meta.url), 'utf8'));
+// Real response of https://spla3.yuu26.com/api/coop-grouping/schedule on 2026-10-29 (stage and weapon image URLs removed)
+const coop = JSON.parse(readFileSync(new URL('./fixtures/coop.json', import.meta.url), 'utf8'));
 const YAGURA = { mode: 'bankara_open', rule: 'LOFT', name: 'オープン ヤグラ', calendarId: 'test' };
+const SALMON = { mode: 'coop', name: 'サーモンラン', calendarId: 'test-coop' };
 
 function fakeCalendar() {
   const events = [];
@@ -29,20 +32,22 @@ function fakeCalendar() {
   };
 }
 
-function setup(responses) {
-  const calendar = fakeCalendar();
+// responses: an array, or per-URL arrays, of bodies returned in order on each fetch
+function setup(responses, entries = [YAGURA]) {
+  const calendars = Object.fromEntries(entries.map((e) => [e.calendarId, fakeCalendar()]));
   const requests = [];
   const gas = loadGas({
-    CalendarApp: { getCalendarById: () => calendar },
+    CalendarApp: { getCalendarById: (id) => calendars[id] },
     UrlFetchApp: {
       fetch(url, options) {
         requests.push({ url, options });
-        return { getResponseCode: () => 200, getContentText: () => JSON.stringify(responses.shift()) };
+        const body = Array.isArray(responses) ? responses.shift() : responses[url].shift();
+        return { getResponseCode: () => 200, getContentText: () => JSON.stringify(body) };
       },
     },
   });
-  gas(`CALENDARS.splice(0, CALENDARS.length, ${JSON.stringify(YAGURA)})`);
-  return { gas, calendar, requests };
+  gas(`CALENDARS.splice(0, CALENDARS.length, ...${JSON.stringify(entries)})`);
+  return { gas, calendar: calendars[entries[0].calendarId], calendars, requests };
 }
 
 test('extracts only Anarchy Battle (Open) Tower Control slots', () => {
@@ -134,4 +139,72 @@ test('rewrites title and description of registered slots without adding events',
   assert.equal(calendar.events.length, 3);
   assert.equal(calendar.events[0].title, 'オープン ヤグラ');
   assert.equal(calendar.events[1].description, '・マテガイ放水路\n・オヒョウ海運\n\nデータ: Spla3 API (https://spla3.yuu26.com)');
+});
+
+test('extracts Salmon Run slots with stage, King Salmonid, and weapons', () => {
+  const { gas } = setup([]);
+  const slots = structuredClone(gas(`extractCoopSlots(${JSON.stringify(coop)}, ${JSON.stringify(SALMON)})`));
+  assert.deepEqual(
+    slots.map((s) => [s.key, s.start, s.end, s.title]),
+    [
+      ['coop/2026-10-29T09:00:00+09:00', '2026-10-29T09:00:00+09:00', '2026-10-31T01:00:00+09:00', 'サーモンラン'],
+      ['coop/2026-10-31T01:00:00+09:00', '2026-10-31T01:00:00+09:00', '2026-11-01T17:00:00+09:00', 'サーモンラン'],
+      ['coop/2026-11-01T17:00:00+09:00', '2026-11-01T17:00:00+09:00', '2026-11-03T09:00:00+09:00', 'サーモンラン'],
+      ['coop/2026-11-03T09:00:00+09:00', '2026-11-03T09:00:00+09:00', '2026-11-05T01:00:00+09:00', 'サーモンラン'],
+      ['coop/2026-11-05T01:00:00+09:00', '2026-11-05T01:00:00+09:00', '2026-11-06T17:00:00+09:00', 'サーモンラン'],
+    ],
+  );
+  assert.equal(
+    slots[0].description,
+    'ステージ: どんぴこ闘技場\nオカシラシャケ: ヨコヅナ\nブキ:\n・ヴァリアブルローラー\n・ガエンFF\n・.52ガロン\n・ハイドラント\n\nデータ: Spla3 API (https://spla3.yuu26.com)',
+  );
+});
+
+test('marks Big Run slots in the title', () => {
+  const { gas } = setup([]);
+  const bigRun = structuredClone(coop);
+  bigRun.results[1].is_big_run = true;
+  const slots = gas(`extractCoopSlots(${JSON.stringify(bigRun)}, ${JSON.stringify(SALMON)})`);
+  assert.deepEqual([...slots].map((s) => s.title).slice(0, 3), ['サーモンラン', 'サーモンラン ビッグラン', 'サーモンラン']);
+});
+
+test('fetches battle and Salmon Run APIs once each and never duplicates on rerun', () => {
+  // The second run is two days later: the first slot is gone and a new one is appended
+  const later = structuredClone(coop);
+  later.results.shift();
+  later.results.push({ ...later.results.at(-1), start_time: '2026-11-06T17:00:00+09:00', end_time: '2026-11-08T09:00:00+09:00' });
+  const { gas, calendars, requests } = setup(
+    {
+      'https://spla3.yuu26.com/api/schedule': [schedule, schedule],
+      'https://spla3.yuu26.com/api/coop-grouping/schedule': [coop, later],
+    },
+    [YAGURA, SALMON],
+  );
+
+  gas('sync()');
+  assert.equal(calendars.test.events.length, 3);
+  assert.equal(calendars['test-coop'].events.length, 5);
+  gas('sync()');
+  assert.equal(calendars.test.events.length, 3);
+  assert.deepEqual(
+    calendars['test-coop'].events.map((e) => e.getTag('spla3gcal.slot')),
+    [...coop.results.map((s) => `coop/${s.start_time}`), 'coop/2026-11-06T17:00:00+09:00'],
+  );
+  assert.deepEqual(
+    requests.map((r) => r.url),
+    [
+      'https://spla3.yuu26.com/api/schedule',
+      'https://spla3.yuu26.com/api/coop-grouping/schedule',
+      'https://spla3.yuu26.com/api/schedule',
+      'https://spla3.yuu26.com/api/coop-grouping/schedule',
+    ],
+  );
+  assert.match(requests[1].options.headers['User-Agent'], /github\.com\/minodisk\/spla3gcal/);
+});
+
+test('skips rows with an empty calendarId and does not fetch APIs only they use', () => {
+  const { gas, calendar, requests } = setup([schedule], [YAGURA, { ...SALMON, calendarId: '' }]);
+  gas('sync()');
+  assert.equal(calendar.events.length, 3);
+  assert.deepEqual(requests.map((r) => r.url), ['https://spla3.yuu26.com/api/schedule']);
 });
