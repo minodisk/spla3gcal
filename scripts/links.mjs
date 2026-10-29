@@ -1,5 +1,4 @@
 // Generates the subscribe-link table from CALENDARS in src/calendars.js and rewrites it between the markers in README.md.
-// When moving to GitHub Pages, also write HTML from the same CALENDARS here.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { loadGas } from './gas.mjs';
 
