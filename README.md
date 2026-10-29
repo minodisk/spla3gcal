@@ -22,16 +22,19 @@ Splatoon 3 schedules as subscribable Google Calendars
 | X ヤグラ | [購読する](https://calendar.google.com/calendar/u/0?cid=3f8c85d2b3cbbae1a266e14bff7cfa9b19bc2c5cdd451cce864f2bce27f055ce%40group.calendar.google.com) |
 | X ホコ | [購読する](https://calendar.google.com/calendar/u/0?cid=6e535673d2a3308aef20fe97832bc9a4992c6825d2234f6b954a321337b809cf%40group.calendar.google.com) |
 | X アサリ | [購読する](https://calendar.google.com/calendar/u/0?cid=ba9afe031a54ae1cc6e0ba04a5b31acdb448a70fa273cac27957086fcd10e8d6%40group.calendar.google.com) |
+| サーモンラン | 準備中 |
 <!-- calendars:end -->
 
 この表は `npm run links` で [src/calendars.js](src/calendars.js) から生成しています。手で書き換えないでください。
 
 ## 仕組み
 
-- Google Apps Script（GAS）が 4 時間おきに [Spla3 API](https://spla3.yuu26.com) の `/api/schedule` を 1 回取得し、[src/calendars.js](src/calendars.js) の `CALENDARS` に並んだカレンダーへ、該当する枠を予定として書き込みます。
+- Google Apps Script（GAS）が 4 時間おきに [Spla3 API](https://spla3.yuu26.com) の `/api/schedule`（バトル）と `/api/coop-grouping/schedule`（サーモンラン）を 1 回ずつ取得し、[src/calendars.js](src/calendars.js) の `CALENDARS` に並んだカレンダーへ、該当する枠を予定として書き込みます。取得するのは `CALENDARS` の行が使う API だけです。
 - API から取れるのは直近 1 日分ほどなので、定期実行で先の枠を足していきます。
-- 各予定にはタグ `spla3gcal.slot` に枠の識別子（例: `bankara_open/LOFT/2026-10-29T15:00:00+09:00`）を入れています。書き込む前にカレンダー上の予定のタグを見て、登録済みの枠は飛ばします。
+- 各予定にはタグ `spla3gcal.slot` に枠の識別子（例: `bankara_open/LOFT/2026-10-29T15:00:00+09:00`、サーモンランは `coop/2026-10-29T09:00:00+09:00`）を入れています。書き込む前にカレンダー上の予定のタグを見て、登録済みの枠は飛ばします。
 - フェス開催中はバンカラマッチなどの `rule` が `null` になるため、その間は予定を作りません。
+- サーモンランの予定の説明欄には、ステージ・オカシラシャケ・支給ブキを書いています。ビッグランの枠はタイトルを「サーモンラン ビッグラン」にします。
+- バイトチームコンテスト（`/api/coop-grouping-team-contest/schedule`）は入れていません。通常のサーモンランと同じ時間帯に並行して開かれるため、同じカレンダーに入れると予定が重なって見分けにくく、4 人でチームを組む前提の別イベントなので購読したい人も分かれます。開催していない間は API が空の配列を返すので、実レスポンスでテストできる時期に別カレンダーとして足すのがよいと考えています。
 - ICS フィードではなく Google カレンダーそのものを公開しているのは、Google カレンダーが外部 ICS を半日〜1 日おきにしか再取得せず、枠が抜けるためです。
 
 ## セットアップ
@@ -84,7 +87,7 @@ npm run links
 
 ## カレンダーを増やす
 
-1. [src/calendars.js](src/calendars.js) の `CALENDARS` に `calendarId: ''` で 1 行足す（`mode` と `rule` の値はファイル冒頭のコメント参照）
+1. [src/calendars.js](src/calendars.js) の `CALENDARS` に `calendarId: ''` で 1 行足す（`mode` と `rule` の値はファイル冒頭のコメント参照）。`calendarId` が空の行は `sync` が飛ばすので、先に push してもエラーになりません
 2. `npm test && npm run push` してから、スクリプトエディタで `createCalendars` を実行する
 3. ログに出た ID を `calendarId` に書き、`npm run push && npm run links` してコミットする
 
@@ -96,7 +99,7 @@ npm run links
 npm test
 ```
 
-[test/fixtures/schedule.json](test/fixtures/schedule.json) は 2026-10-29 に取得した `/api/schedule` の実レスポンスです（期限付きのステージ画像 URL だけ削除）。テストは [scripts/gas.mjs](scripts/gas.mjs) で `src/` を GAS と同じく 1 つのグローバルスコープに読み込み、`CalendarApp` と `UrlFetchApp` を差し替えて、ヤグラ枠の抽出と再実行時に重複登録しないことを確かめています。
+[test/fixtures/schedule.json](test/fixtures/schedule.json) と [test/fixtures/coop.json](test/fixtures/coop.json) は 2026-10-29 に取得した `/api/schedule` と `/api/coop-grouping/schedule` の実レスポンスです（期限付きのステージ・ブキ画像 URL だけ削除）。テストは [scripts/gas.mjs](scripts/gas.mjs) で `src/` を GAS と同じく 1 つのグローバルスコープに読み込み、`CalendarApp` と `UrlFetchApp` を差し替えて、ヤグラ枠とサーモンラン枠の抽出と、再実行時に重複登録しないことを確かめています。
 
 ## .clasp.json をコミットしない理由
 

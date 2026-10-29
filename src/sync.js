@@ -1,18 +1,23 @@
 const API_URL = 'https://spla3.yuu26.com/api/schedule';
+const COOP_API_URL = 'https://spla3.yuu26.com/api/coop-grouping/schedule';
 const USER_AGENT = 'spla3gcal/1.0 (https://github.com/minodisk/spla3gcal)';
 // Event tag key. Its value holds the slot key so reruns never create duplicates.
 const SLOT_TAG = 'spla3gcal.slot';
 
 // Called by the time-driven trigger. Writes unregistered slots to every calendar in CALENDARS,
 // and rewrites the title and description of registered slots that differ from the current format.
+// Each API is fetched at most once, and only if some row uses it. Rows with an empty calendarId
+// (before createCalendars) are skipped.
 function sync() {
-  const schedule = fetchSchedule();
-  CALENDARS.forEach((entry) => {
+  const responses = {};
+  CALENDARS.filter((entry) => entry.calendarId).forEach((entry) => {
+    const source = sourceOf(entry);
+    responses[source.url] = responses[source.url] || fetchJson(source.url);
     const calendar = CalendarApp.getCalendarById(entry.calendarId);
     if (!calendar) {
       throw new Error(`カレンダーが見つからない: ${entry.name} (${entry.calendarId})`);
     }
-    const slots = extractSlots(schedule, entry);
+    const slots = source.extract(responses[source.url], entry);
     if (slots.length === 0) {
       return;
     }
@@ -54,17 +59,24 @@ function createCalendars() {
       CalendarApp.createCalendar(entry.name, { timeZone: 'Asia/Tokyo' });
     // CalendarApp cannot change sharing, so add the ACL via the Calendar API advanced service
     Calendar.Acl.insert({ role: 'reader', scope: { type: 'default' } }, calendar.getId());
-    console.log(`${entry.mode} ${entry.rule}: ${calendar.getId()}`);
+    console.log(`${entry.name}: ${calendar.getId()}`);
   });
 }
 
-function fetchSchedule() {
-  const res = UrlFetchApp.fetch(API_URL, {
+// Where each mode is fetched from and how its slots are extracted. Modes other than coop read result[mode] of /api/schedule.
+function sourceOf(entry) {
+  return entry.mode === 'coop'
+    ? { url: COOP_API_URL, extract: extractCoopSlots }
+    : { url: API_URL, extract: extractSlots };
+}
+
+function fetchJson(url) {
+  const res = UrlFetchApp.fetch(url, {
     headers: { 'User-Agent': USER_AGENT },
     muteHttpExceptions: true,
   });
   if (res.getResponseCode() !== 200) {
-    throw new Error(`${API_URL} が ${res.getResponseCode()} を返した: ${res.getContentText().slice(0, 200)}`);
+    throw new Error(`${url} が ${res.getResponseCode()} を返した: ${res.getContentText().slice(0, 200)}`);
   }
   return JSON.parse(res.getContentText());
 }
@@ -83,4 +95,22 @@ function extractSlots(schedule, entry) {
         description: `${stages.map((name) => `・${name}`).join('\n')}\n\nデータ: Spla3 API (https://spla3.yuu26.com)`,
       };
     });
+}
+
+// Big Run slots come from the same API with is_big_run set, so mark them in the title.
+function extractCoopSlots(coop, entry) {
+  return coop.results.map((s) => ({
+    key: `${entry.mode}/${s.start_time}`,
+    start: s.start_time,
+    end: s.end_time,
+    title: s.is_big_run ? `${entry.name} ビッグラン` : entry.name,
+    description: [
+      `ステージ: ${s.stage.name}`,
+      `オカシラシャケ: ${s.boss.name}`,
+      'ブキ:',
+      ...s.weapons.map((w) => `・${w.name}`),
+      '',
+      'データ: Spla3 API (https://spla3.yuu26.com)',
+    ].join('\n'),
+  }));
 }

@@ -1,7 +1,8 @@
 // Calendars to publish. Add one row here to add a calendar.
 // mode: key of `result` in https://spla3.yuu26.com/api/schedule
 //   (regular / bankara_open / bankara_challenge / x / event / fest / fest_challenge)
-// rule: rule key (TURF_WAR / AREA / LOFT / GOAL / CLAM)
+//   or coop (Salmon Run from https://spla3.yuu26.com/api/coop-grouping/schedule)
+// rule: rule key (TURF_WAR / AREA / LOFT / GOAL / CLAM); omitted for coop
 // name: calendar name, also used as the event title
 // calendarId: calendar ID shown under "Integrate calendar" in Google Calendar settings
 const CALENDARS = [
@@ -17,4 +18,5 @@ const CALENDARS = [
   { mode: 'x', rule: 'LOFT', name: 'X ヤグラ', calendarId: '3f8c85d2b3cbbae1a266e14bff7cfa9b19bc2c5cdd451cce864f2bce27f055ce@group.calendar.google.com' },
   { mode: 'x', rule: 'GOAL', name: 'X ホコ', calendarId: '6e535673d2a3308aef20fe97832bc9a4992c6825d2234f6b954a321337b809cf@group.calendar.google.com' },
   { mode: 'x', rule: 'CLAM', name: 'X アサリ', calendarId: 'ba9afe031a54ae1cc6e0ba04a5b31acdb448a70fa273cac27957086fcd10e8d6@group.calendar.google.com' },
+  { mode: 'coop', name: 'サーモンラン', calendarId: '' },
 ];
