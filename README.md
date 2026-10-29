@@ -22,7 +22,7 @@ Splatoon 3 schedules as subscribable Google Calendars
 | X ヤグラ | [購読する](https://calendar.google.com/calendar/u/0?cid=3f8c85d2b3cbbae1a266e14bff7cfa9b19bc2c5cdd451cce864f2bce27f055ce%40group.calendar.google.com) |
 | X ホコ | [購読する](https://calendar.google.com/calendar/u/0?cid=6e535673d2a3308aef20fe97832bc9a4992c6825d2234f6b954a321337b809cf%40group.calendar.google.com) |
 | X アサリ | [購読する](https://calendar.google.com/calendar/u/0?cid=ba9afe031a54ae1cc6e0ba04a5b31acdb448a70fa273cac27957086fcd10e8d6%40group.calendar.google.com) |
-| サーモンラン | 準備中 |
+| サーモンラン | [購読する](https://calendar.google.com/calendar/u/0?cid=6be311703b43d72a47225af97dabd861a4a23ebed6269ac1dc369e3797b92bbb%40group.calendar.google.com) |
 <!-- calendars:end -->
 
 この表は `npm run links` で [src/calendars.js](src/calendars.js) から生成しています。手で書き換えないでください。
