@@ -1,0 +1,13 @@
+{
+  "name": "spla3gcal",
+  "private": true,
+  "description": "Splatoon 3 schedules as subscribable Google Calendars",
+  "scripts": {
+    "test": "node --test test/",
+    "links": "node scripts/links.mjs",
+    "push": "clasp push --force"
+  },
+  "devDependencies": {
+    "@google/clasp": "3.4.1"
+  }
+}
