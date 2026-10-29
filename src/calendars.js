@@ -1,9 +1,9 @@
-// 配信するカレンダーの一覧。カレンダーを増やすときはここに 1 行足す。
-// mode: https://spla3.yuu26.com/api/schedule の result のキー
+// Calendars to publish. Add one row here to add a calendar.
+// mode: key of `result` in https://spla3.yuu26.com/api/schedule
 //   (regular / bankara_open / bankara_challenge / x / event / fest / fest_challenge)
-// rule: ルールKey (TURF_WAR / AREA / LOFT / GOAL / CLAM)
-// name: カレンダー名。予定のタイトルの頭にも付く
-// calendarId: Google カレンダーの「カレンダーの統合」にあるカレンダー ID
+// rule: rule key (TURF_WAR / AREA / LOFT / GOAL / CLAM)
+// name: calendar name, also used as the event title
+// calendarId: calendar ID shown under "Integrate calendar" in Google Calendar settings
 const CALENDARS = [
   { mode: 'bankara_open', rule: 'AREA', name: 'オープン エリア', calendarId: 'c519a262aa2c7bc17ff44ba7257a3e811c5dd3cac12fa45ce7c693f1908bb925@group.calendar.google.com' },
   { mode: 'bankara_open', rule: 'LOFT', name: 'オープン ヤグラ', calendarId: '4e3d3bd8466304740bb1236bae539715df3c922de7c0b855033b8d489f867d29@group.calendar.google.com' },

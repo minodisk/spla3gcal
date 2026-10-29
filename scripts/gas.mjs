@@ -1,4 +1,4 @@
-// src/ の GAS ファイルを Node で読み込む。GAS と同じく全ファイルが 1 つのグローバルスコープを共有する。
+// Loads the GAS files in src/ into Node. As in GAS, all files share one global scope.
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 

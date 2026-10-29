@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { loadGas } from '../scripts/gas.mjs';
 
-// 2026-10-29 15:00 時点の https://spla3.yuu26.com/api/schedule の実レスポンス (ステージ画像 URL のみ削除)
+// Real response of https://spla3.yuu26.com/api/schedule at 2026-10-29 15:00 JST (stage image URLs removed)
 const schedule = JSON.parse(readFileSync(new URL('./fixtures/schedule.json', import.meta.url), 'utf8'));
 const YAGURA = { mode: 'bankara_open', rule: 'LOFT', name: 'オープン ヤグラ', calendarId: 'test' };
 
@@ -45,7 +45,7 @@ function setup(responses) {
   return { gas, calendar, requests };
 }
 
-test('バンカラマッチ(オープン)のヤグラ枠だけを抽出する', () => {
+test('extracts only Anarchy Battle (Open) Tower Control slots', () => {
   const { gas } = setup([]);
   const slots = structuredClone(gas(`extractSlots(${JSON.stringify(schedule)}, ${JSON.stringify(YAGURA)})`));
   assert.deepEqual(
@@ -59,15 +59,15 @@ test('バンカラマッチ(オープン)のヤグラ枠だけを抽出する', 
   assert.equal(slots[0].key, 'bankara_open/LOFT/2026-10-29T15:00:00+09:00');
 });
 
-test('フェス開催中 (rule が null) の枠は抽出しない', () => {
+test('skips slots during a Splatfest (rule is null)', () => {
   const { gas } = setup([]);
   const fest = structuredClone(schedule);
   fest.result.bankara_open = fest.result.bankara_open.map((s) => ({ ...s, rule: null, stages: null, is_fest: true }));
   assert.equal(gas(`extractSlots(${JSON.stringify(fest)}, ${JSON.stringify(YAGURA)})`).length, 0);
 });
 
-test('再実行しても重複登録せず、新しく出た枠だけを足す', () => {
-  // 2 回目は 2 時間後を想定: 先頭の枠が消え、末尾に新しいヤグラ枠が増える
+test('reruns add only new slots without duplicates', () => {
+  // The third run simulates a later fetch: the first slot is gone and a new Tower Control slot is appended
   const later = structuredClone(schedule);
   const open = later.result.bankara_open.slice(1);
   open.push({
@@ -96,7 +96,7 @@ test('再実行しても重複登録せず、新しく出た枠だけを足す',
   assert.match(requests[0].options.headers['User-Agent'], /github\.com\/minodisk\/spla3gcal/);
 });
 
-test('createCalendars は ID が空の行だけ作って公開し、同じ名前があれば作らない', () => {
+test('createCalendars creates and publishes only rows without an ID, reusing calendars with the same name', () => {
   const owned = { 'バンカラマッチ(オープン) ガチエリア': [{ getId: () => 'area@group' }] };
   const created = [];
   const acl = [];
@@ -125,7 +125,7 @@ test('createCalendars は ID が空の行だけ作って公開し、同じ名前
   ]);
 });
 
-test('登録済みの枠はタイトルと説明欄を今の形式に書き換え、予定は増やさない', () => {
+test('rewrites title and description of registered slots without adding events', () => {
   const { gas, calendar } = setup([schedule, schedule]);
   gas('sync()');
   calendar.events[0].title = '古いタイトル';

@@ -1,10 +1,10 @@
 const API_URL = 'https://spla3.yuu26.com/api/schedule';
 const USER_AGENT = 'spla3gcal/1.0 (https://github.com/minodisk/spla3gcal)';
-// 予定に付けるタグのキー。値に枠の識別子を入れて、再実行時の重複登録を防ぐ。
+// Event tag key. Its value holds the slot key so reruns never create duplicates.
 const SLOT_TAG = 'spla3gcal.slot';
 
-// 時間主導トリガーから呼ばれる。CALENDARS の全カレンダーに未登録の枠を書き込み、
-// 登録済みの枠はタイトルと説明欄が今の形式と違えば書き換える。
+// Called by the time-driven trigger. Writes unregistered slots to every calendar in CALENDARS,
+// and rewrites the title and description of registered slots that differ from the current format.
 function sync() {
   const schedule = fetchSchedule();
   CALENDARS.forEach((entry) => {
@@ -37,7 +37,7 @@ function sync() {
   });
 }
 
-// 一度だけ手動で実行する。sync を 4 時間おきに動かすトリガーを張り直す。
+// Run once by hand. Recreates the trigger that runs sync every 4 hours.
 function installTrigger() {
   ScriptApp.getProjectTriggers()
     .filter((t) => t.getHandlerFunction() === 'sync')
@@ -45,14 +45,14 @@ function installTrigger() {
   ScriptApp.newTrigger('sync').timeBased().everyHours(4).create();
 }
 
-// 一度だけ手動で実行する。calendarId が空の行のカレンダーを作って一般公開し、ID をログに出す。
-// 同じ名前のカレンダーがあればそれを使うので、ID を書き戻す前に再実行しても増えない。
+// Run once by hand. Creates and publishes a calendar for each row with an empty calendarId and logs its ID.
+// Reuses an existing calendar with the same name, so rerunning before writing the IDs back creates no extras.
 function createCalendars() {
   CALENDARS.filter((entry) => !entry.calendarId).forEach((entry) => {
     const calendar =
       CalendarApp.getOwnedCalendarsByName(entry.name)[0] ||
       CalendarApp.createCalendar(entry.name, { timeZone: 'Asia/Tokyo' });
-    // CalendarApp では公開設定を変えられないので、高度なサービスの Calendar API で ACL を足す
+    // CalendarApp cannot change sharing, so add the ACL via the Calendar API advanced service
     Calendar.Acl.insert({ role: 'reader', scope: { type: 'default' } }, calendar.getId());
     console.log(`${entry.mode} ${entry.rule}: ${calendar.getId()}`);
   });
@@ -69,7 +69,7 @@ function fetchSchedule() {
   return JSON.parse(res.getContentText());
 }
 
-// フェス開催中は rule が null になるので、ルールの一致で自然に除外される。
+// During a Splatfest rule is null, so those slots are excluded by the rule match.
 function extractSlots(schedule, entry) {
   return (schedule.result[entry.mode] || [])
     .filter((s) => s.rule && s.rule.key === entry.rule)
